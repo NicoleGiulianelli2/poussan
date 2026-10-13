@@ -91,10 +91,7 @@ public class Forno : MonoBehaviour
         if (stato == Stato.InCottura)               msg = $"Lasagne in forno... {Mathf.CeilToInt(restante)} s";
         else if (stato == Stato.Pronto && scrittaPronto > 0f) msg = "Lasagne pronte! Sono sul tavolo";
         else if (Vicino())                          msg = $"Premi {tasto} per cuocere le lasagne";
-        if (msg == null) return;
- 
-        const float w = 340f;
-        GUI.Box(new Rect((Screen.width - w) / 2f, Screen.height - 130f, w, 42f), msg);
+        Avviso.Disegna(msg);
     }
 }
  

@@ -276,8 +276,7 @@ public class KettleSteamInteraction : MonoBehaviour
     {
         if (!showHint || !PlayerIsNear()) return;
         string message = isSteaming ? $"Premi {tasto} per fermare il vapore" : $"Premi {tasto} per accendere il bollitore";
-        const float width = 310f;
-        GUI.Box(new Rect((Screen.width - width) / 2f, Screen.height - 83f, width, 42f), message);
+        Avviso.Disegna(message);
     }
  
     private void OnDestroy()

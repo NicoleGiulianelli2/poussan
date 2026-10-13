@@ -33,7 +33,7 @@ public static class CostruisciPrimiPiani
                     mRosa, mGrigio, mCrema, mGiallo, mRosso, mFiamma, mPentola, mZuppa, mNero,
                     mCarta, mLegno;
     static Material[] mColori;
-    static Material mLasagna, mCrosta, mFornoAcceso;
+    static Material mLasagna, mCrosta, mFornoAcceso, mAcqua, mSchiuma, mVimini, mSpugna;
  
     [MenuItem("CasaPulcino/Aggiungi primi piani")]
     public static void Aggiungi()
@@ -60,6 +60,12 @@ public static class CostruisciPrimiPiani
         Prepara("Bollitore",          0f,   Niente,    0.5f,   1.75f,   0.5f,    false, distanza: 0.7f);
         CollegaBollitore();
         AggiungiForno();
+        Prepara("Microonde",          0f,   Niente,    0.5f,   1.75f,   0.5f,    false, distanza: 0.7f);
+        CollegaMicroonde();
+        Prepara("Lavatrice",          0f,   Niente,    0.7f,   1.5f,    0.5f,    false, distanza: 0.95f);
+        AggiungiLavatrice();
+        Prepara("Lavandino cucina",  90f,   Niente,    0.6f,   1.75f,   0.85f,   false, distanza: 0.5f);
+        AggiungiLavandino();
  
         AssetDatabase.SaveAssets();
         var arredi = GameObject.Find("Arredi");
@@ -312,6 +318,196 @@ public static class CostruisciPrimiPiani
         Box(dx, "Pannello", new Vector3(-w / 4f, h / 2f, 0.02f), new Vector3(w / 2f, h, 0.04f), mLegno);
     }
  
+    // MICROONDE: attacca MicrowaveInteraction al modello "Microwave" e gli collega il pulcino
+    static void CollegaMicroonde()
+    {
+        var tipo = System.Type.GetType("MicrowaveInteraction, Assembly-CSharp");
+        var radice = TrovaMobile("Microonde");
+        if (tipo == null || radice == null) return;
+ 
+        Transform modello = null;
+        foreach (var t in radice.GetComponentsInChildren<Transform>(true))
+            if (t.Find("DoorHinge") != null) modello = t;
+        if (modello == null)
+        {
+            Debug.Log("Microonde: modello Microwave non trovato (è ancora quello di Kenney o un blocco?).");
+            return;
+        }
+        var comp = modello.GetComponent(tipo);
+        if (comp == null) comp = modello.gameObject.AddComponent(tipo);
+        var so = new SerializedObject(comp);
+        var pulcino = GameObject.Find("Pulcino");
+        if (pulcino != null) so.FindProperty("player").objectReferenceValue = pulcino.transform;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+ 
+    // LAVATRICE: oblò con acqua e panni che girano, cesto di panni puliti per terra
+    static void AggiungiLavatrice()
+    {
+        var tipo = System.Type.GetType("Lavatrice, Assembly-CSharp");
+        var radice = TrovaMobile("Lavatrice");
+        if (tipo == null || radice == null) return;
+        foreach (var n in new[] { "Oblò", "Cesto" })
+        {
+            var v = radice.Find(n);
+            if (v != null) Object.DestroyImmediate(v.gameObject);
+        }
+ 
+        // La lavatrice guarda a nord (+Z). Oblò a metà altezza, sulla faccia davanti.
+        var col = radice.GetComponent<BoxCollider>();
+        Vector3 c = radice.TransformPoint(col.center), s = col.size;
+        Vector3 avanti = Vector3.forward;
+        float diam = s.x * 0.6f;
+ 
+        var oblo = new GameObject("Oblò").transform;
+        oblo.SetParent(radice, false);
+        oblo.position = new Vector3(c.x, c.y - s.y / 2f + s.y * 0.48f, c.z + s.z / 2f + 0.006f);
+        oblo.rotation = Quaternion.FromToRotation(Vector3.up, avanti);   // la "Y" dell'oblò guarda fuori
+        Cil(oblo, "Fondo", Vector3.zero, new Vector3(diam, 0.002f, diam), mPentola);
+        Cil(oblo, "Acqua", new Vector3(0f, 0.008f, 0f), new Vector3(diam * 0.95f, 0.002f, diam * 0.95f), mAcqua);
+        var tamburo = new GameObject("Tamburo").transform;
+        tamburo.SetParent(oblo, false);
+        tamburo.localPosition = new Vector3(0f, 0.004f, 0f);
+        var caso = new System.Random(21);
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i / 8f * Mathf.PI * 2f, r = diam * (0.18f + (float)caso.NextDouble() * 0.14f);
+            Sfera(tamburo, "Panno", new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r),
+                  new Vector3(diam * 0.28f, 0.006f, diam * 0.18f), mColori[i % mColori.Length], new Vector3(0f, a * Mathf.Rad2Deg + 30f, 0f));
+        }
+        for (int i = 0; i < 6; i++)
+            Sfera(tamburo, "Bolla", new Vector3(((float)caso.NextDouble() - 0.5f) * diam * 0.6f, 0.01f, ((float)caso.NextDouble() - 0.5f) * diam * 0.6f),
+                  Vector3.one * 0.025f, mSchiuma);
+        oblo.gameObject.SetActive(false);
+ 
+        // Cesto per terra davanti alla lavatrice
+        var cesto = new GameObject("Cesto").transform;
+        cesto.SetParent(radice, false);
+        cesto.position = new Vector3(c.x, 0f, c.z + s.z / 2f + 0.28f);
+        Cil(cesto, "Cesto", new Vector3(0f, 0.12f, 0f), new Vector3(0.42f, 0.12f, 0.32f), mVimini);
+        Cil(cesto, "Bordo", new Vector3(0f, 0.24f, 0f), new Vector3(0.45f, 0.012f, 0.35f), mVimini);
+        for (int i = 0; i < 12; i++)
+        {
+            float a = (float)caso.NextDouble() * Mathf.PI * 2f, r = (float)caso.NextDouble();
+            Sfera(cesto, "Panno pulito", new Vector3(Mathf.Cos(a) * 0.14f * r, 0.25f + (float)caso.NextDouble() * 0.06f, Mathf.Sin(a) * 0.1f * r),
+                  new Vector3(0.16f, 0.05f, 0.11f), mColori[caso.Next(mColori.Length)], new Vector3(0f, (float)caso.NextDouble() * 360f, 0f));
+        }
+        cesto.gameObject.SetActive(false);
+ 
+        var comp = radice.GetComponent(tipo);
+        if (comp == null) comp = radice.gameObject.AddComponent(tipo);
+        var so = new SerializedObject(comp);
+        so.FindProperty("oblo").objectReferenceValue = oblo.gameObject;
+        so.FindProperty("tamburo").objectReferenceValue = tamburo;
+        so.FindProperty("asse").vector3Value = avanti;
+        so.FindProperty("cesto").objectReferenceValue = cesto.gameObject;
+        so.FindProperty("modello").objectReferenceValue = radice.Find("Modello");
+        var pulcino = GameObject.Find("Pulcino");
+        if (pulcino != null) so.FindProperty("pulcino").objectReferenceValue = pulcino.transform;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+ 
+    // LAVANDINO: acqua che scorre, schiuma, piatti sporchi sul mobile a nord, scolapiatti sul mobile a sud
+    static void AggiungiLavandino()
+    {
+        var tipo = System.Type.GetType("Lavandino, Assembly-CSharp");
+        var radice = TrovaMobile("Lavandino cucina");
+        if (tipo == null || radice == null) return;
+        foreach (var n in new[] { "Acqua lavandino", "Piatto in lavaggio", "Sapone" })
+        {
+            var v = radice.Find(n);
+            if (v != null) Object.DestroyImmediate(v.gameObject);
+        }
+ 
+        // Il lavandino guarda a est (+X), contro il muro a ovest. Misure ricavate dal modello Kenney:
+        // piano di lavoro al 92% dell'altezza, bordo del lavello all'86%, rubinetto in cima.
+        var col = radice.GetComponent<BoxCollider>();
+        Vector3 c = radice.TransformPoint(col.center), s = col.size;
+        float y0 = c.y - s.y / 2f, h = s.y;
+        float fronte = c.x + s.x / 2f, d = s.x;
+        Vector3 lavello = new Vector3(fronte - d * 0.43f, y0 + h * 0.83f, c.z);
+ 
+        var acqua = new GameObject("Acqua lavandino").transform;
+        acqua.SetParent(radice, false);
+        acqua.position = lavello;
+        Box(acqua, "Acqua nel lavello", Vector3.zero, new Vector3(d * 0.34f, 0.01f, s.z * 0.5f), mAcqua);
+        float alto = y0 + h * 0.97f, lung = alto - lavello.y;
+        Cil(acqua, "Getto", new Vector3(-d * 0.07f, lung / 2f, 0f), new Vector3(0.02f, lung / 2f, 0.02f), mAcqua);
+        var schiuma = new GameObject("Schiuma").transform;
+        schiuma.SetParent(acqua, false);
+        var caso = new System.Random(33);
+        for (int i = 0; i < 14; i++)
+            Sfera(schiuma, "Bolla", new Vector3(((float)caso.NextDouble() - 0.5f) * d * 0.3f, 0.012f, ((float)caso.NextDouble() - 0.5f) * s.z * 0.45f),
+                  Vector3.one * (0.025f + (float)caso.NextDouble() * 0.035f), mSchiuma);
+ 
+        var piatto = new GameObject("Piatto in lavaggio").transform;
+        piatto.SetParent(radice, false);
+        piatto.position = lavello + Vector3.up * 0.02f;
+        Cil(piatto, "Piatto", Vector3.zero, new Vector3(0.2f, 0.005f, 0.2f), mBiancoLucido);
+        Box(piatto, "Spugna", new Vector3(0.04f, 0.02f, 0f), new Vector3(0.07f, 0.03f, 0.045f), mSpugna);
+ 
+        // Sapone sul bordo, vicino al muro
+        var sapone = new GameObject("Sapone").transform;
+        sapone.SetParent(radice, false);
+        sapone.position = new Vector3(c.x - s.x / 2f + d * 0.12f, y0 + h * 0.92f, c.z + s.z * 0.38f);
+        Cil(sapone, "Flacone", new Vector3(0f, 0.08f, 0f), new Vector3(0.055f, 0.08f, 0.055f), mVerde);
+        Cil(sapone, "Tappo", new Vector3(0f, 0.17f, 0f), new Vector3(0.025f, 0.012f, 0.025f), mBianco);
+ 
+        // Pila di piatti sporchi sul mobile a nord, scolapiatti sul mobile a sud
+        var sporchi = new System.Collections.Generic.List<GameObject>();
+        var puliti = new System.Collections.Generic.List<GameObject>();
+        var nord = TrovaMobile("Mobile cucina 2");
+        var sud = TrovaMobile("Mobile cucina 1");
+        if (nord != null)
+        {
+            var v = nord.Find("Piatti sporchi");
+            if (v != null) Object.DestroyImmediate(v.gameObject);
+            var nc = nord.GetComponent<BoxCollider>();
+            Vector3 cn = nord.TransformPoint(nc.center);
+            var pila = new GameObject("Piatti sporchi").transform;
+            pila.SetParent(nord, false);
+            pila.position = new Vector3(cn.x, cn.y + nc.size.y / 2f, cn.z);
+            for (int i = 0; i < 4; i++)
+            {
+                var p = Cil(pila, "Piatto sporco", new Vector3(0f, 0.006f + i * 0.014f, 0f), new Vector3(0.22f, 0.006f, 0.22f), mBiancoLucido);
+                Sfera(p.transform, "Macchia", new Vector3(0.1f, 1.2f, -0.05f), new Vector3(0.35f, 0.6f, 0.25f), mZuppa);
+                sporchi.Add(p);
+            }
+        }
+        if (sud != null)
+        {
+            var v = sud.Find("Scolapiatti");
+            if (v != null) Object.DestroyImmediate(v.gameObject);
+            var sc = sud.GetComponent<BoxCollider>();
+            Vector3 cs = sud.TransformPoint(sc.center);
+            var scola = new GameObject("Scolapiatti").transform;
+            scola.SetParent(sud, false);
+            scola.position = new Vector3(cs.x, cs.y + sc.size.y / 2f, cs.z);
+            Box(scola, "Base", new Vector3(0f, 0.01f, 0f), new Vector3(0.26f, 0.02f, 0.3f), mGrigio);
+            for (int i = 0; i < 4; i++)
+                puliti.Add(Cil(scola, "Piatto pulito", new Vector3(0f, 0.12f, -0.1f + i * 0.065f),
+                               new Vector3(0.22f, 0.005f, 0.22f), mBiancoLucido, new Vector3(80f, 0f, 0f)));
+        }
+ 
+        var comp = radice.GetComponent(tipo);
+        if (comp == null) comp = radice.gameObject.AddComponent(tipo);
+        var so = new SerializedObject(comp);
+        so.FindProperty("acqua").objectReferenceValue = acqua.gameObject;
+        so.FindProperty("schiuma").objectReferenceValue = schiuma;
+        so.FindProperty("piattoInLavaggio").objectReferenceValue = piatto;
+        ImpostaLista(so.FindProperty("piattiSporchi"), sporchi);
+        ImpostaLista(so.FindProperty("piattiPuliti"), puliti);
+        var pulcino = GameObject.Find("Pulcino");
+        if (pulcino != null) so.FindProperty("pulcino").objectReferenceValue = pulcino.transform;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+ 
+    static void ImpostaLista(SerializedProperty lista, System.Collections.Generic.List<GameObject> oggetti)
+    {
+        lista.arraySize = oggetti.Count;
+        for (int i = 0; i < oggetti.Count; i++) lista.GetArrayElementAtIndex(i).objectReferenceValue = oggetti[i];
+    }
+ 
     // BOLLITORE: attacca KettleSteamInteraction al modello Kettle e gli collega il pulcino
     static void CollegaBollitore()
     {
@@ -544,6 +740,10 @@ public static class CostruisciPrimiPiani
         mLasagna      = Mat("Lasagna",        new Color(0.95f, 0.72f, 0.38f));
         mCrosta       = Mat("Crosticina",     new Color(0.55f, 0.3f, 0.12f));
         mFornoAcceso  = Mat("Forno acceso",   new Color(1f, 0.5f, 0.15f), emissione: new Color(1f, 0.45f, 0.1f) * 2.5f);
+        mAcqua        = MatTrasparente("Acqua", new Color(0.45f, 0.7f, 0.95f, 0.55f));
+        mSchiuma      = Mat("Schiuma",        new Color(1f, 1f, 1f), liscio: 0.85f);
+        mVimini       = Mat("Vimini",         new Color(0.72f, 0.52f, 0.3f));
+        mSpugna       = Mat("Spugna",         new Color(0.98f, 0.85f, 0.25f));
         mColori = new[]
         {
             Mat("Tinta rossa",  new Color(0.8f, 0.25f, 0.25f)),

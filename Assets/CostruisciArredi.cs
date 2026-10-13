@@ -135,7 +135,7 @@ public static class CostruisciArredi
         Pezzo("Asse",             1.95f, 1.98f, 3.95f, 2.62f, 0.9f, 0.94f, pianoLavoro, false);
         Pezzo("Friggitrice ad aria", 2.1f, 2.1f, 2.45f, 2.45f, 0.94f, 1.26f, nero, true, "AirFryer", 0);
         Pezzo("Bollitore", 2.7f, 2.15f, 3.0f, 2.45f, 0.94f, 1.25f, acciaio, true, "Kettle", 0); // se beccuccio guarda muro metti 180 invece che 0
-        Pezzo("Microonde",        3.3f,  2.05f, 3.85f, 2.45f, 0.94f, 1.24f, bianco,   true,  "kitchenMicrowave", 0);
+        Pezzo("Microonde", 3.3f, 2.05f, 3.85f, 2.45f, 0.94f, 1.24f, bianco, true, "Microwave", 0);
         Pezzo("Frigo",            4.0f,  1.98f, 4.7f,  2.63f, 0f, 1.8f,  bianco,      true,  "kitchenFridge",    0);
  
         // --- Bagno ---
